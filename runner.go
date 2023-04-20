@@ -184,4 +184,3 @@ func (r *Runner) cronjobToPrometheusLabels(cronjob CrontabEntry, additionalLabel
 	}
 	return
 }
-
