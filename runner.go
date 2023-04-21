@@ -43,6 +43,7 @@ func (r *Runner) Add(cronjob CrontabEntry) error {
 		log.WithFields(LogCronjobToFields(cronjob)).Errorf("cronjob failed adding:%v", err)
 	} else {
 		cronjob.SetEntryId(eid)
+		r.updateCronEntryMetrics(&cronjob)
 		prometheusMetricTask.With(r.cronjobToPrometheusLabels(cronjob)).Set(1)
 		log.WithFields(LogCronjobToFields(cronjob)).Infof("cronjob added")
 	}
@@ -88,6 +89,7 @@ func (r *Runner) AddWithUser(cronjob CrontabEntry) error {
 		log.WithFields(LogCronjobToFields(cronjob)).Errorf("cronjob failed adding: %v", err)
 	} else {
 		cronjob.SetEntryId(eid)
+		r.updateCronEntryMetrics(&cronjob)
 		prometheusMetricTask.With(r.cronjobToPrometheusLabels(cronjob)).Set(1)
 		log.WithFields(LogCronjobToFields(cronjob)).Infof("cronjob added")
 	}
@@ -159,9 +161,7 @@ func (r *Runner) cmdFunc(cronjob *CrontabEntry, cmdCallback func(*exec.Cmd) bool
 				logFields["result"] = "success"
 			}
 
-			entry := r.cron.Entry(cronjob.EntryId)
-			prometheusMetricTaskRunNextTs.With(cronjobMetricCommonLables).Set(float64(entry.Next.Unix()))
-			prometheusMetricTaskRunPrevTs.With(cronjobMetricCommonLables).Set(float64(entry.Prev.Unix()))
+			r.updateCronEntryMetrics(cronjob)
 			log.WithFields(logFields).Info("finished")
 			if len(cmdStdout) > 0 {
 				log.Debugln(string(cmdStdout))
@@ -183,4 +183,11 @@ func (r *Runner) cronjobToPrometheusLabels(cronjob CrontabEntry, additionalLabel
 		}
 	}
 	return
+}
+
+func (r *Runner) updateCronEntryMetrics(cronjob *CrontabEntry) {
+	cronjobMetricCommonLables := r.cronjobToPrometheusLabels(*cronjob)
+	entry := r.cron.Entry(cronjob.EntryId)
+	prometheusMetricTaskRunNextTs.With(cronjobMetricCommonLables).Set(float64(entry.Next.Unix()))
+	prometheusMetricTaskRunPrevTs.With(cronjobMetricCommonLables).Set(float64(entry.Prev.Unix()))
 }
