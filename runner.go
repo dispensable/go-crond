@@ -47,7 +47,7 @@ func (r *Runner) Add(cronjob CrontabEntry) error {
 		cronjob.SetEntryId(eid)
 		r.cronjobs[eid] = &cronjob
 		prometheusMetricTask.With(r.cronjobToPrometheusLabels(cronjob)).Set(1)
-		log.WithFields(LogCronjobToFields(cronjob)).Infof("cronjob added")
+		log.WithFields(LogCronjobToFields(cronjob)).Infof("cronjob added without user switch")
 	}
 
 	return err
@@ -80,6 +80,22 @@ func (r *Runner) AddWithUser(cronjob CrontabEntry) error {
 			return false
 		}
 
+		// update user env
+		envs := NewCronEnvs(execCmd.Env)
+		envs.SetEnv("LOGNAME", cronjob.User)
+		envs.SetEnv("USER", cronjob.User)
+		if u.HomeDir != "" {
+			envs.SetEnv("HOME", u.HomeDir)
+			envs.SetEnv("PWD", u.HomeDir)
+			execCmd.Dir = u.HomeDir
+		}
+		err = envs.UpdateEnvForJob(&cronjob)
+		if err != nil {
+			log.WithFields(LogCronjobToFields(cronjob)).Errorf("Cannot override env vars: %v", err)
+			return false
+		}
+		execCmd.Env = envs.GetEnvList()
+
 		// add process credentials
 		execCmd.SysProcAttr = &syscall.SysProcAttr{}
 		execCmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(userId), Gid: uint32(groupId)}
@@ -93,7 +109,7 @@ func (r *Runner) AddWithUser(cronjob CrontabEntry) error {
 		cronjob.SetEntryId(eid)
 		r.cronjobs[eid] = &cronjob
 		prometheusMetricTask.With(r.cronjobToPrometheusLabels(cronjob)).Set(1)
-		log.WithFields(LogCronjobToFields(cronjob)).Infof("cronjob added")
+		log.WithFields(LogCronjobToFields(cronjob)).Infof("cronjob added with user")
 	}
 
 	return err
