@@ -10,6 +10,7 @@ var (
 	prometheusMetricTaskRunPrevTs   *prometheus.GaugeVec
 	prometheusMetricTaskRunNextTs   *prometheus.GaugeVec
 	prometheusMetricTaskRunDuration *prometheus.GaugeVec
+	prometheusMetricTaskRunning     *prometheus.GaugeVec
 )
 
 func initMetrics() {
@@ -75,6 +76,15 @@ func initMetrics() {
 		[]string{"cronSpec", "cronUser", "cronCommand"},
 	)
 	prometheus.MustRegister(prometheusMetricTaskRunPrevTs)
+
+	prometheusMetricTaskRunning = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gocrond_task_running",
+			Help: "cronjob counts in running status",
+		},
+		[]string{"cronSpec", "cronUser", "cronCommand"},
+	)
+	prometheus.MustRegister(prometheusMetricTaskRunning)
 }
 
 func resetMetrics() {
@@ -85,4 +95,5 @@ func resetMetrics() {
 	prometheusMetricTaskRunDuration.Reset()
 	prometheusMetricTaskRunNextTs.Reset()
 	prometheusMetricTaskRunPrevTs.Reset()
+	prometheusMetricTaskRunning.Reset()
 }

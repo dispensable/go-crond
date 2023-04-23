@@ -47,6 +47,7 @@ func (r *Runner) Add(cronjob CrontabEntry) error {
 		cronjob.SetEntryId(eid)
 		r.cronjobs[eid] = &cronjob
 		prometheusMetricTask.With(r.cronjobToPrometheusLabels(cronjob)).Set(1)
+		prometheusMetricTaskRunning.With(r.cronjobToPrometheusLabels(cronjob)).Set(0)
 		log.WithFields(LogCronjobToFields(cronjob)).Infof("cronjob added without user switch")
 	}
 
@@ -109,6 +110,7 @@ func (r *Runner) AddWithUser(cronjob CrontabEntry) error {
 		cronjob.SetEntryId(eid)
 		r.cronjobs[eid] = &cronjob
 		prometheusMetricTask.With(r.cronjobToPrometheusLabels(cronjob)).Set(1)
+		prometheusMetricTaskRunning.With(r.cronjobToPrometheusLabels(cronjob)).Set(0)
 		log.WithFields(LogCronjobToFields(cronjob)).Infof("cronjob added with user")
 	}
 
@@ -136,6 +138,8 @@ func (r *Runner) Stop() {
 // Execute crontab command
 func (r *Runner) cmdFunc(cronjob *CrontabEntry, cmdCallback func(*exec.Cmd) bool) func() {
 	cmdFunc := func() {
+		cronjobMetricCommonLables := r.cronjobToPrometheusLabels(*cronjob)
+		prometheusMetricTaskRunning.With(cronjobMetricCommonLables).Inc()
 		// fall back to normal shell if not specified
 		taskShell := cronjob.Shell
 		if taskShell == "" {
@@ -160,7 +164,6 @@ func (r *Runner) cmdFunc(cronjob *CrontabEntry, cmdCallback func(*exec.Cmd) bool
 
 			elapsed := time.Since(start)
 
-			cronjobMetricCommonLables := r.cronjobToPrometheusLabels(*cronjob)
 			prometheusMetricTaskRunDuration.With(cronjobMetricCommonLables).Set(elapsed.Seconds())
 			prometheusMetricTaskRunTime.With(cronjobMetricCommonLables).SetToCurrentTime()
 
@@ -186,6 +189,8 @@ func (r *Runner) cmdFunc(cronjob *CrontabEntry, cmdCallback func(*exec.Cmd) bool
 				log.Debugln(string(cmdStdout))
 			}
 		}
+
+		prometheusMetricTaskRunning.With(cronjobMetricCommonLables).Dec()
 	}
 	return cmdFunc
 }
