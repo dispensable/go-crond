@@ -88,7 +88,6 @@ func (r *Runner) AddWithUser(cronjob CrontabEntry) error {
 		if u.HomeDir != "" {
 			envs.SetEnv("HOME", u.HomeDir)
 			envs.SetEnv("PWD", u.HomeDir)
-			execCmd.Dir = u.HomeDir
 		}
 		err = envs.UpdateEnvForJob(&cronjob)
 		if err != nil {
@@ -177,6 +176,7 @@ func (r *Runner) cmdFunc(cronjob *CrontabEntry, cmdCallback func(*exec.Cmd) bool
 				prometheusMetricTaskRunCount.With(r.cronjobToPrometheusLabels(*cronjob, prometheus.Labels{"result": "error"})).Inc()
 				prometheusMetricTaskRunResult.With(cronjobMetricCommonLables).Set(0)
 				logFields["result"] = "error"
+				log.WithFields(logFields).Errorf("run cmd err: %s", err)
 			} else {
 				prometheusMetricTaskRunCount.With(r.cronjobToPrometheusLabels(*cronjob, prometheus.Labels{"result": "success"})).Inc()
 				prometheusMetricTaskRunResult.With(cronjobMetricCommonLables).Set(1)
